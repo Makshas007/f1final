@@ -1,7 +1,9 @@
+import asyncio
 import logging
 import os
 import time
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
@@ -31,10 +33,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-client = AsyncIOMotorClient(os.environ["MONGO_URL"])
-db = client[os.environ["DB_NAME"]]
+MONGO_URL = os.environ.get("MONGO_URL")
+DB_NAME = os.environ.get("DB_NAME")
+if not MONGO_URL or not DB_NAME:
+    raise RuntimeError("MONGO_URL and DB_NAME must be set in backend/.env")
 
-app = FastAPI(title="Crowd Flow Optimiser API", version="1.0")
+client = AsyncIOMotorClient(MONGO_URL)
+db = client[DB_NAME]
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    warmup_task = asyncio.create_task(ai_service.warmup())
+    yield
+    warmup_task.cancel()
+    client.close()
+
+
+app = FastAPI(title="Crowd Flow Optimiser API", version="1.0", lifespan=lifespan)
 api = APIRouter(prefix="/api")
 
 
@@ -175,15 +191,3 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-async def startup():
-    import asyncio
-
-    asyncio.create_task(ai_service.warmup())
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    client.close()

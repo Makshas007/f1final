@@ -1,5 +1,5 @@
 {
-  "summary": "Full backend + frontend E2E for CFO. Backend: 24/24 pytest tests pass (health, all 3 presets, simulate for each preset with default params <5s, emergent bottlenecks, persistence, invalid venue 404, out-of-range 422, custom layout upload + simulate, malformed layouts 422, reroute suggestions AI + fallback + empty + out-of-range 422). HF Qwen/Qwen2.5-7B-Instruct integration verified end-to-end: source='ai', model='Qwen/Qwen2.5-7B-Instruct', ~1.1s, real operator recommendation naming location + reroute path. Frontend: all requested flows work - stadium auto-select, preset switching (train_station, festival_ground), Run Simulation fills KPI strip (People 2309, Peak 100%, Critical 2, Clearance 32 min), AI Reroutes panel populates with HF AI badge + severity, suggestion card click draws highlighted alternate path (blue dashed), time scrubber label changes on step and play (22:20 -> 22:23 -> 22:26), 1x/2x/4x + step back/forward all work, comparison card appears on rerun (140 -> 58 events), advanced toggle reveals start-time + duration, malformed JSON toast 'File is not valid JSON', semantic invalid layout toast surfaces backend 422 detail, panel collapse/expand OK, color legend shows all 4 states with patterns. AI features loaded: ai-testing-core, ai-testing-llm.\n\nAI feature verdict: reroute-suggestions (HF Qwen2.5) - pass - evidence: source='ai' model='Qwen/Qwen2.5-7B-Instruct' elapsed=1.13s text='Re-route fans from Concourse C to Concourse B, then through Turnstile Bank North to Exit Plaza 1. Increase staff at Turnstile Bank North to expedite egress.' (via pytest TestReroute::test_ai_suggestions_with_bottleneck).",
+  "summary": "Full backend + frontend validation of Crowd Flow Optimiser (CFO) after de-vibecoding refactor (lifespan migration, TS conversion, 5 new features). Ran the existing pytest suite in /app/backend/tests/backend_test.py (24 tests) - ALL PASS. Executed a Playwright end-to-end script against REACT_APP_BACKEND_URL covering: preset skeleton→cards render, run simulation, HF AI suggestions, PDF/CSV export on both Scenario and AI Reroutes tabs, pan/zoom buttons, keyboard shortcuts (Space/Arrow/Escape), and URL state persistence across reload. All 5 new features work and zero console errors observed.",
   "backend_issues": {
     "critical": [],
     "minor": []
@@ -8,21 +8,29 @@
     "ui_bugs": [],
     "integration_issues": [],
     "design_issues": [
-      {"screen": "VenueCanvas", "issues": ["Canvas2D warning in console: 'Multiple readback operations using getImageData are faster with willReadFrequently attribute set to true.' Cosmetic only - consider adding {willReadFrequently:true} when getContext('2d') is called."]}
+      {"screen": "TimeScrubber play button", "issues": ["play-toggle-btn has no aria-label; screen-reader users cannot tell Play vs Pause state (functional toggle still works via Space; test verified state change by checking scrubber label movement)."]}
     ]
   },
-  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
-  "action_items": [],
-  "critical_code_review_comments": [
-    "server.py uses deprecated FastAPI on_event('startup'/'shutdown') - consider lifespan handlers (FastAPI >=0.93).",
-    "Consider passing willReadFrequently:true on the 2D canvas context to suppress the browser perf warning (VenueCanvas.jsx).",
-    "AsyncInferenceClient is instantiated per call (_client_for) and closed each time; ok functionally but a shared client would reduce connection overhead. Not blocking."
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
   ],
-  "updated_files": ["/app/backend/tests/backend_test.py"],
-  "success_rate": {"backend": "100% (24/24)", "frontend": "100% of requested flows"},
-  "test_credentials": "N/A - app has no auth",
-  "seed_data_creation": "None persisted beyond pytest custom_* venues used for upload+simulate; MongoDB collections are venues + simulations. Cleanup not implemented but each test creates one small venue only.",
+  "action_items": [
+    "(Optional) Add aria-label to [data-testid=play-toggle-btn] that reflects Play/Pause for a11y."
+  ],
+  "critical_code_review_comments": [
+    "backend/server.py, ai_service.py, simulation.py and presets.py are well-structured, use env vars, exclude Mongo _id and use async correctly.",
+    "Frontend TypeScript conversion is clean; components under /components use data-testid consistently and every interactive element in scope has a testid.",
+    "URL state persistence writes back after preset load, so on first visit the URL is populated with defaults - this is fine, matches spec (shareable link).",
+    "Downloads work via jspdf/blob anchor; both Scenario and AI-Reroutes export buttons trigger the same underlying exportPDF/exportCSV - filenames are venue-scoped, no duplicates.",
+    "d3-zoom is wired into VenueCanvas and the +/-/reset buttons plus wheel/drag work without console errors."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (24/24)", "frontend": "100% of 5 new features + baseline flows"},
+  "test_credentials": "n/a (no auth in this app)",
+  "seed_data_creation": "TestCustomVenue uploads a tiny TEST_ prefixed layout via POST /api/venues; no persistent seed data is committed - MongoDB entries live only for the run's simulation.",
   "retest_needed": false,
   "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "Backend suite lives at /app/backend/tests/backend_test.py and loads REACT_APP_BACKEND_URL from /app/frontend/.env at import time. Run with `cd /app/backend && python -m pytest tests/backend_test.py -v`. All 24 tests pass. Frontend was tested via the public preview URL. Notable: (1) the Run Simulation button auto-switches to the AI Reroutes tab, so to see the comparison-card you must switch back to tab-scenario; (2) simStore setResult uses previous result as previousRun regardless of param changes, so comparison card shows on the 2nd+ run always; (3) preset default params include arrival_curve+event_start_time but not duration_steps for some presets, so App.js merges step_duration_seconds=60 - do not remove that. HF_TOKEN currently in backend/.env is live and working."
+  "context_for_next_testing_agent": "Backend suite at /app/backend/tests/backend_test.py runs in <5s (pytest-xdist, 2 workers) and covers health/presets/simulate/custom-venue/reroute-suggestions including the HF AI vs fallback source and 422/404 negative paths. Playwright verified preset skeletons, run→scrubber→AI Reroutes tab auto-switch, PDF/CSV downloads on BOTH Scenario tab (export-pdf-btn/export-csv-btn under [data-testid=export-section]) and AI Reroutes tab (export-pdf-btn-suggestions/export-csv-btn-suggestions), zoom-in/out/reset buttons, keyboard shortcuts (Space toggles play, ArrowLeft/Right steps timeline, Escape closes panel and open-panel-btn appears), and URL state (venue/people/curve/steps/start query params written on scenario change and restored on reload). HF AI is currently reachable and returns source='ai' for stadium_egress bottleneck steps.",
+  "rca of the issue": "n/a - no failing issues found."
 }
