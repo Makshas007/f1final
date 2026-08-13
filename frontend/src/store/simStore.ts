@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type {
+  Override,
   PresetSummary,
   RerouteSuggestion,
   SimulationParams,
@@ -32,6 +33,7 @@ interface SimState {
   focusedElementId: string | null;
   focusedPath: string[] | null;
   panelOpen: boolean;
+  overrides: Override[];
 
   setPresets: (presets: PresetSummary[]) => void;
   setVenue: (venue: VenueLayout, venueId: string) => void;
@@ -49,6 +51,12 @@ interface SimState {
     focusedPath: string[] | null,
   ) => void;
   togglePanel: () => void;
+  toggleOverride: (
+    elementId: string,
+    overrideType: "close" | "reduce_capacity",
+    value?: number,
+  ) => void;
+  clearOverrides: () => void;
 }
 
 export const useSimStore = create<SimState>()(
@@ -75,6 +83,7 @@ export const useSimStore = create<SimState>()(
       focusedElementId: null,
       focusedPath: null,
       panelOpen: true,
+      overrides: [],
 
       setPresets: (presets) => set({ presets }),
       setVenue: (venue, venueId) =>
@@ -87,6 +96,7 @@ export const useSimStore = create<SimState>()(
           isPlaying: false,
           focusedElementId: null,
           focusedPath: null,
+          overrides: [],
         }),
       setParams: (patch) => set({ params: { ...get().params, ...patch } }),
       setSimulating: (isSimulating) => set({ isSimulating }),
@@ -118,6 +128,26 @@ export const useSimStore = create<SimState>()(
       focusElement: (focusedElementId, focusedPath) =>
         set({ focusedElementId, focusedPath }),
       togglePanel: () => set({ panelOpen: !get().panelOpen }),
+      toggleOverride: (elementId, overrideType, value = 0.5) => {
+        const existing = get().overrides.find(
+          (o) => o.element_id === elementId,
+        );
+        if (existing && existing.override_type === overrideType) {
+          set({
+            overrides: get().overrides.filter(
+              (o) => o.element_id !== elementId,
+            ),
+          });
+        } else {
+          set({
+            overrides: [
+              ...get().overrides.filter((o) => o.element_id !== elementId),
+              { element_id: elementId, override_type: overrideType, value },
+            ],
+          });
+        }
+      },
+      clearOverrides: () => set({ overrides: [] }),
     }),
     { name: "crowd-flow-optimiser" },
   ),

@@ -41,6 +41,58 @@ export const TacticalHeader = () => {
       step.edges.filter((e) => e.status === "critical").length
     : 0;
 
+  const sparkline = (() => {
+    if (!result || result.steps.length < 2) return null;
+    const w = 132;
+    const h = 30;
+    const values = result.steps.map((s) => s.people_inside);
+    const maxVal = Math.max(...values, 1);
+    const n = values.length;
+    const points = values
+      .map((v, i) => {
+        const x = (i / (n - 1)) * w;
+        const y = h - (v / maxVal) * (h - 3) - 1.5;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(" ");
+    const ratio = values[currentStep] / maxVal;
+    const stroke =
+      ratio > 0.8 ? "#EF4444" : ratio > 0.5 ? "#FBBF24" : "#10B981";
+    const cx = (currentStep / (n - 1)) * w;
+    return (
+      <div
+        className="flex items-center gap-3 border-l border-white/10 pl-5"
+        data-testid="crowd-sparkline"
+      >
+        <div>
+          <p className="text-[9px] uppercase tracking-[0.2em] text-slate-500">
+            Crowd over time
+          </p>
+          <svg width={w} height={h} className="mt-1 overflow-visible">
+            <polyline
+              points={points}
+              fill="none"
+              stroke={stroke}
+              strokeWidth={1.6}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+            <line
+              x1={cx}
+              y1={0}
+              x2={cx}
+              y2={h}
+              stroke="#38BDF8"
+              strokeWidth={1}
+              strokeDasharray="2 2"
+            />
+            <circle cx={cx} cy={h - (values[currentStep] / maxVal) * (h - 3) - 1.5} r={2.4} fill="#38BDF8" />
+          </svg>
+        </div>
+      </div>
+    );
+  })();
+
   return (
     <header
       data-testid="tactical-header"
@@ -100,6 +152,7 @@ export const TacticalHeader = () => {
               : "\u2014"
           }
         />
+        {sparkline}
       </div>
     </header>
   );

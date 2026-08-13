@@ -60,6 +60,9 @@ def resolve_endpoints(layout: VenueLayout) -> Tuple[List[str], List[str]]:
 
 
 def generate_arrival_curve(total: int, steps: int, curve_type: str) -> List[int]:
+    # Gaussian arrival surges approximate observed crowd build-up: a sharp
+    # early spike ("heavy", e.g. post-match egress) vs a broader peak
+    # ("moderate", e.g. staggered festival arrivals) vs flat ("light").
     x = np.linspace(0, 1, steps)
     if curve_type == "light":
         weights = np.ones(steps)
@@ -74,6 +77,11 @@ def generate_arrival_curve(total: int, steps: int, curve_type: str) -> List[int]
 
 
 def classify_congestion(utilization: float) -> CongestionStatus:
+    # Thresholds map to Fruin's pedestrian Level of Service (LOS) model:
+    #   LOS A-B (<50%) free flow, LOS C (50-75%) restricted, LOS D (75-90%)
+    #   congested, LOS E-F (>90%) crush risk. These bands also align with NDMA
+    #   crowd-management guidance for mass gatherings.
+    #   Ref: Fruin, J.J. (1971), "Pedestrian Planning and Design".
     if utilization < 0.50:
         return CongestionStatus.CLEAR
     if utilization < 0.75:
@@ -154,7 +162,46 @@ def _time_label(start: str, step: int, step_seconds: int) -> str:
     return f"{total // 60:02d}:{total % 60:02d}"
 
 
-def run_simulation(layout: VenueLayout, params: SimulationParams) -> SimulationResult:
+def apply_overrides(layout: VenueLayout, overrides: list) -> VenueLayout:
+    """Return a copy of the layout with 'what-if' capacity overrides applied.
+
+    Overrides act for the WHOLE simulation, so the routing table genuinely
+    re-solves around the change rather than switching mid-stream.
+      - 'close': throttle the element to ~0 capacity so flow reroutes around it.
+        The element is never fully removed, which keeps the graph connected and
+        always simulatable.
+      - 'reduce_capacity': scale capacity by the given factor (0..1).
+    A node override also scales every edge leaving that node, modelling a gate
+    that can no longer pass people through at full throughput. Exit/sink nodes
+    are left untouched.
+    """
+    if not overrides:
+        return layout
+    mod = layout.model_copy(deep=True)
+    node_ids = {n.id for n in mod.nodes}
+    for ov in overrides:
+        factor = 0.0 if ov.override_type == "close" else float(ov.value)
+        if ov.element_id in node_ids:
+            for n in mod.nodes:
+                if n.id == ov.element_id and n.type != "exit":
+                    n.capacity = max(1, int(n.capacity * factor))
+            for e in mod.edges:
+                if e.source == ov.element_id:
+                    e.capacity_per_step = max(1, int(e.capacity_per_step * factor))
+        else:
+            for e in mod.edges:
+                if e.id == ov.element_id:
+                    e.capacity_per_step = max(1, int(e.capacity_per_step * factor))
+    return mod
+
+
+def run_simulation(
+    layout: VenueLayout,
+    params: SimulationParams,
+    overrides: Optional[list] = None,
+) -> SimulationResult:
+    if overrides:
+        layout = apply_overrides(layout, overrides)
     G = build_graph(layout)
     sources, sinks = resolve_endpoints(layout)
     dist = _distance_to_sink(G, sinks)
@@ -182,7 +229,7 @@ def run_simulation(layout: VenueLayout, params: SimulationParams) -> SimulationR
     critical_elements: set = set()
     exited_total = 0
     clearance_step: Optional[int] = None
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(params.seed if params.seed is not None else 42)
 
     for step in range(params.duration_steps):
         incoming = arrivals[step]

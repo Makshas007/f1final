@@ -6,6 +6,7 @@ import axios, {
 import type {
   PresetSummary,
   PresetDetail,
+  Override,
   RerouteResponse,
   SimulationParams,
   SimulationResult,
@@ -60,6 +61,19 @@ export const runSimulation = async (
 ): Promise<SimulationResult> =>
   (await http.post<SimulationResult>("/simulate", { venue_id: venueId, params }))
     .data;
+
+export const runWhatIf = async (
+  venueId: string,
+  params: SimulationParams,
+  overrides: Override[],
+): Promise<SimulationResult> =>
+  (
+    await http.post<SimulationResult>("/simulate-whatif", {
+      venue_id: venueId,
+      params,
+      overrides,
+    })
+  ).data;
 
 export const fetchSuggestions = async (
   simulationId: string,

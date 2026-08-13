@@ -64,6 +64,31 @@ theme (deep navy + glassmorphism).
 - ✅ Tested: **24/24 backend pytest**, all 5 new frontend features, zero console errors
   (`/app/test_reports/iteration_1.json`). Simulation < 5s; HF AI live (source='ai').
 
+## Judge-feedback upgrades (2026-06, iteration 3)
+Targets the 72→90 rubric jump. All tested (`/app/test_reports/iteration_3.json`:
+53 backend tests, 12/12 frontend assertions, 0 console errors).
+- ✅ **1A Structured AI reasoning** — Qwen returns JSON (action / priority /
+  affected_zones / estimated_impact), parsed and shown as coloured pills + impact line.
+- ✅ **1B Second HF model** — `facebook/bart-large-mnli` zero-shot risk classifier
+  produces an "AI risk" badge (stampede_risk / flow_disruption / minor_delay / safe),
+  concurrent with text gen, with a rule fallback and a downgrade-guard (a critical
+  bottleneck is never labelled "safe"). Both HF models confirmed live (source='ai').
+- ✅ **Track 2 What-If mode** — `POST /api/simulate-whatif`; close a gate / −50% capacity
+  → whole-sim re-solve (`apply_overrides`, deep-copied so the original is untouched) →
+  delta card (peak load + risk events before→after); overridden elements highlighted
+  blue on the canvas.
+- ✅ **3B Sparkline** — crowd-over-time SVG in the header, coloured by LOS band.
+- ✅ **4C Optional seed** — `SimulationParams.seed`; reproducible runs; UI input.
+- ✅ **4A/4B Unit tests** — `tests/test_simulation.py`, `tests/test_ai_service.py`,
+  `tests/conftest.py` (pure, no server); testing agent added `tests/test_new_endpoints.py`.
+- ✅ **5A Research references** — Fruin LOS / NDMA comments in simulation & presets.
+- ✅ **6A Docker Compose** — `docker-compose.yml` + backend/frontend Dockerfiles.
+- ✅ Hover tooltips (3A) were already implemented in the TS rewrite.
+
+### Deferred (not yet built)
+Responsive mobile layout (3E), WebSocket streaming (4D), evacuation mode (7A),
+ControlPanel refactor into sub-components (3D), sound alerts (7C).
+
 ## GitHub export checklist (for a "handcrafted" repo)
 After **Save to GitHub**, delete these from the repo (they cannot be removed inside Emergent):
 1. `.emergent/`  2. `memory/`  3. `.git` platform metadata is fine to keep.

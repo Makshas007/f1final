@@ -97,6 +97,7 @@ export const VenueCanvas = () => {
             hoverId: hoverRef.current,
             focusedElementId: s.focusedElementId,
             focusedPath: s.focusedPath,
+            overrideIds: new Set(s.overrides.map((o) => o.element_id)),
             tick,
           });
         } else if (size.w > 0) {

@@ -46,6 +46,13 @@ export interface SimulationParams {
   step_duration_seconds: number;
   arrival_curve: string;
   event_start_time: string;
+  seed?: number | null;
+}
+
+export interface Override {
+  element_id: string;
+  override_type: "close" | "reduce_capacity";
+  value: number;
 }
 
 export interface PresetSummary {
@@ -113,6 +120,12 @@ export interface RerouteSuggestion {
   generated_text: string;
   source: string;
   model?: string | null;
+  ai_action?: string | null;
+  ai_priority?: string | null;
+  ai_affected_zones?: string[];
+  ai_impact?: string | null;
+  ai_risk?: string | null;
+  ai_risk_source?: string | null;
 }
 
 export interface RerouteResponse {

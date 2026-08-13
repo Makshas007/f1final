@@ -24,6 +24,7 @@ from models import (  # noqa: E402
     SimulateRequest,
     SimulationResult,
     VenueLayout,
+    WhatIfRequest,
 )
 from simulation import run_simulation  # noqa: E402
 
@@ -136,6 +137,28 @@ async def simulate(request: SimulateRequest):
     doc["_id"] = result.simulation_id
     doc["created_at"] = datetime.now(timezone.utc).isoformat()
     doc["runtime_seconds"] = round(elapsed, 3)
+    await db.simulations.replace_one({"_id": result.simulation_id}, doc, upsert=True)
+    return result
+
+
+@api.post("/simulate-whatif", response_model=SimulationResult)
+async def simulate_whatif(request: WhatIfRequest):
+    layout = await _load_layout(request.venue_id)
+    started = time.perf_counter()
+    try:
+        result = run_simulation(layout, request.params, overrides=request.overrides)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    elapsed = time.perf_counter() - started
+    logger.info(
+        "What-if simulation %s on %s (%d overrides) took %.3fs",
+        result.simulation_id, layout.id, len(request.overrides), elapsed,
+    )
+    doc = result.model_dump()
+    doc["_id"] = result.simulation_id
+    doc["created_at"] = datetime.now(timezone.utc).isoformat()
+    doc["runtime_seconds"] = round(elapsed, 3)
+    doc["overrides"] = [o.model_dump() for o in request.overrides]
     await db.simulations.replace_one({"_id": result.simulation_id}, doc, upsert=True)
     return result
 

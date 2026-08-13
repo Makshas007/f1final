@@ -1,4 +1,10 @@
-"""Hand-tuned demo venue layouts."""
+"""Hand-tuned demo venue layouts.
+
+Node capacities and edge throughputs are illustrative but scaled to plausible
+real-world figures (e.g. a ~40,000-seat stadium egress, a Kumbh-scale riverside
+ground with narrow bridge choke points). Congestion is evaluated against Fruin
+Level-of-Service bands (see simulation.classify_congestion).
+"""
 import math
 from typing import Dict, List
 

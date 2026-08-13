@@ -56,11 +56,24 @@ class SimulationParams(BaseModel):
     step_duration_seconds: int = Field(60, ge=10, le=300)
     arrival_curve: str = "moderate"
     event_start_time: str = "18:00"
+    seed: Optional[int] = None
+
+
+class Override(BaseModel):
+    element_id: str
+    override_type: str = "reduce_capacity"  # "close" | "reduce_capacity"
+    value: float = Field(0.5, ge=0.0, le=1.0)
 
 
 class SimulateRequest(BaseModel):
     venue_id: str
     params: SimulationParams = SimulationParams()
+
+
+class WhatIfRequest(BaseModel):
+    venue_id: str
+    params: SimulationParams = SimulationParams()
+    overrides: List[Override] = []
 
 
 class RerouteRequest(BaseModel):
@@ -124,3 +137,11 @@ class RerouteSuggestion(BaseModel):
     generated_text: str
     source: str = "ai"
     model: Optional[str] = None
+    # Structured reasoning produced by the instruction model (1A).
+    ai_action: Optional[str] = None
+    ai_priority: Optional[str] = None
+    ai_affected_zones: List[str] = []
+    ai_impact: Optional[str] = None
+    # Independent risk triage from the zero-shot classifier (1B).
+    ai_risk: Optional[str] = None
+    ai_risk_source: Optional[str] = None

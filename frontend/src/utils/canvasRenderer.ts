@@ -30,6 +30,7 @@ interface RenderOptions {
   hoverId: string | null;
   focusedElementId: string | null;
   focusedPath: string[] | null;
+  overrideIds: Set<string>;
   tick: number;
 }
 
@@ -179,6 +180,7 @@ export function renderFrame(
     hoverId,
     focusedElementId,
     focusedPath,
+    overrideIds,
     tick,
   } = opts;
 
@@ -323,6 +325,36 @@ export function renderFrame(
     );
     ctx.restore();
   });
+
+  // what-if override markers (blue dashed rings / edges)
+  if (overrideIds.size) {
+    ctx.save();
+    ctx.strokeStyle = "#38BDF8";
+    ctx.setLineDash([5, 4]);
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = "#38BDF8";
+    ctx.shadowBlur = 10;
+    venue.nodes.forEach((n) => {
+      if (!overrideIds.has(n.id)) return;
+      const p = project(n, t);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 27, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+    venue.edges.forEach((e) => {
+      if (!overrideIds.has(e.id)) return;
+      const a = nodeById[e.source];
+      const b = nodeById[e.target];
+      if (!a || !b) return;
+      const p1 = project(a, t);
+      const p2 = project(b, t);
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
 
   ctx.restore();
 }

@@ -1,0 +1,35 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=crowd_flow
+      - CORS_ORIGINS=*
+      - HF_TOKEN=${HF_TOKEN}
+      - HF_MODEL=Qwen/Qwen2.5-7B-Instruct
+    depends_on:
+      - mongo
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:8001
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:

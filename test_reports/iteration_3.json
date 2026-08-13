@@ -1,0 +1,36 @@
+{
+  "summary": "Full backend + frontend validation of CFO iteration 3 (structured AI JSON 1A, zero-shot risk classifier 1B, What-If mode Track 2, sparkline 3B, seed input 4C, backend unit tests 4A/4B). Backend: 53 passed, 2 skipped (defensive HF fallback skips - not failures). Frontend: every requested data-testid present, real HF AI reachable and producing structured output (action/priority/risk pills), What-If canvas highlight + delta render, sparkline SVG in header, seed reproducibility confirmed, 0 console errors.",
+  "ai_features_tested": [
+    "primary: HF Qwen2.5-7B-Instruct structured JSON (1A) — pass - evidence: source=ai, ai_action='open_alternate'/'deploy staff', ai_priority='soon'/'immediate', zones=['Concourse C', 'Turnstile Bank East'], impact='redirects flow and reduces congestion within 1 min', text='Redirect crowd to Concourse B or Turnstile Bank North.' - skill: ai-testing-llm",
+    "HF bart-large-mnli zero-shot risk classifier (1B) — pass - evidence: ai_risk='flow_disruption' with ai_risk_source='ai' on live stadium bottleneck; downgrade guard verified via test_critical_bottleneck_never_labelled_safe (no critical suggestion is ever labelled 'safe') - skill: ai-testing-llm",
+    "AI fallback path — pass - evidence: unit test TestOfflineGeneration monkeypatches HF_TOKEN=None and confirms source='fallback', ai_risk_source='rule'"
+  ],
+  "skills_loaded": ["ai-testing-core", "ai-testing-llm"],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_simulation.py",
+    "/app/backend/tests/test_ai_service.py",
+    "/app/backend/tests/test_new_endpoints.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ai_service.classify_risk downgrade guard (_RISK_RANK) is the crucial safety net; unit-tested via rule_risk + integration-tested by the never-safe assertion on live HF response. Solid.",
+    "simulation.apply_overrides deep-copies the layout (model_copy(deep=True)) so the original is never mutated — verified by test_override_does_not_mutate_original_layout.",
+    "server.simulate_whatif logs override count and persists it to Mongo (doc['overrides']); good audit trail.",
+    "SimulationParams.seed is optional (Field ge/le enforced elsewhere); when None, run_simulation seeds RNG with 42 as documented — reproducibility test passes over HTTP.",
+    "ControlPanel: What-If tab correctly disables run-whatif-btn when overrides.length===0 and disables clear-whatif-btn with the same guard; UX is right.",
+    "TacticalHeader sparkline SVG uses stroke color based on current-step ratio (>0.8 red, >0.5 amber, else emerald) — matches the LOS bands.",
+    "Suggestion cards render ai-action, priority, ai-risk pills conditionally (only when field present); no empty pills on fallback path — correct."
+  ],
+  "updated_files": ["/app/backend/tests/test_new_endpoints.py"],
+  "success_rate": {"backend": "100% (53/53 executed, 2 defensive skips)", "frontend": "100% (12/12 assertions)"},
+  "test_credentials": "n/a (no auth in this app)",
+  "seed_data_creation": "None persistent. test_new_endpoints creates ephemeral simulation docs in MongoDB that share the same lifecycle as normal runs.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend covers 3 test files (test_simulation.py=13, test_ai_service.py=9, test_new_endpoints.py=9, backend_test.py=24). Run all with: cd /app/backend && pytest tests/ -o addopts='' -q. HF is reachable and returning source='ai' for both the Qwen instruction model (JSON action/priority/zones/impact) and the bart-large-mnli zero-shot classifier (ai_risk_source='ai'). If the classifier ever 401s, ai_risk_source falls back to 'rule' — that is expected and acceptable per spec, but the never-safe-when-critical assertion must always hold. Frontend testids to remember: preset-{id}, tab-{scenario|suggestions|whatif}, whatif-close-{node_id}, whatif-reduce-{node_id}, whatif-row-{node_id}, run-whatif-btn, clear-whatif-btn, whatif-delta, suggestion-card-{i}, suggestion-ai-meta-{i}, ai-action-{i}, ai-risk-{i}, crowd-sparkline, seed-input.",
+  "rca of the issue": "n/a — no failures."
+}
